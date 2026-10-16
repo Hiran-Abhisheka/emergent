@@ -180,7 +180,7 @@ part of the system rewards a creature for approaching food.
 
 A single seeded PRNG (sfc32 seeded by splitmix32) lives **inside the world
 state**, so the entire run is reproducible from the seed and the command
-history. Gaussian draws use Box–Muller consuming exactly two uniforms with no
+history. Gaussian draws use Box-Muller consuming exactly two uniforms with no
 cached spare, which keeps the draw sequence stable.
 
 - Commands are applied **at tick boundaries**: the worker handles messages in
@@ -201,7 +201,7 @@ cached spare, which keeps the draw sequence stable.
 
 ```mermaid
 flowchart TB
-    subgraph PURE["src/simulation — pure TypeScript, zero DOM/React imports"]
+    subgraph PURE["src/simulation - pure TypeScript, zero DOM/React imports"]
         ENGINE["engine/<br/>step · spatial grid · sensors · energy · food · reproduction"]
         NEURAL["neural/genome.ts<br/>8 → 12 → 4 forward pass"]
         TRAITS["evolution/traits.ts<br/>heritable traits + mutation"]
@@ -209,21 +209,21 @@ flowchart TB
     end
 
     subgraph BROWSER["Browser"]
-        subgraph WORKER["Web Worker — owns authoritative state"]
-            LOOP["tick loop — stepWorld(world, runtime)"]
-            POOL["snapshot pool — Float32Array + Int32Array"]
+        subgraph WORKER["Web Worker - owns authoritative state"]
+            LOOP["tick loop - stepWorld(world, runtime)"]
+            POOL["snapshot pool - Float32Array + Int32Array"]
         end
         subgraph MAIN["Main thread"]
-            CLIENT["SimulationClient — typed, validated commands"]
-            CANVAS["canvas renderer — reads a useRef"]
-            LAZY["Statistics · Experiments · Saves — React.lazy"]
-            DB[("IndexedDB — save slots · experiment library")]
+            CLIENT["SimulationClient - typed, validated commands"]
+            CANVAS["canvas renderer - reads a useRef"]
+            LAZY["Statistics · Experiments · Saves - React.lazy"]
+            DB[("IndexedDB - save slots · experiment library")]
         end
     end
 
     subgraph NODE["Node (headless)"]
         CAL["scripts/calibrate.ts"]
-        TESTS["Vitest — 125 tests"]
+        TESTS["Vitest - 125 tests"]
     end
 
     LOOP --> ENGINE
@@ -241,7 +241,7 @@ flowchart TB
 ```
 
 The same pure engine drives three consumers: the **Web Worker** (the live app),
-**Node** (calibration and tests), and nothing else — there is no server.
+**Node** (calibration and tests), and nothing else - there is no server.
 
 - **The worker owns authoritative state.** The UI never mutates the world; it
   sends typed, runtime-validated commands.
@@ -249,10 +249,10 @@ The same pure engine drives three consumers: the **Web Worker** (the live app),
   `Float32Array` (`x, y, heading, energy, flags, colorValue`) plus a parallel
   `Int32Array` of ids. Buffers are returned to the worker via an ack, so
   steady-state allocation is ~zero. Snapshots are published through a
-  **`useRef`, never React state** — putting a 30 Hz buffer into state would
+  **`useRef`, never React state** - putting a 30 Hz buffer into state would
   re-render the app 30 times a second.
 - **Statistics** are emitted every 30 ticks and **inspection** every 3 ticks
-  (the engine's `METRICS_HISTORY_CAPACITY` ring buffer holds 4 000 samples —
+  (the engine's `METRICS_HISTORY_CAPACITY` ring buffer holds 4 000 samples -
   ≈ 66 minutes at 1 sample/s).
 - **Rendering** is canvas-only per creature with device-pixel-ratio scaling, a
   `ResizeObserver`, wheel zoom about the cursor, drag pan, and click-to-select
@@ -260,13 +260,13 @@ The same pure engine drives three consumers: the **Web Worker** (the live app),
   overlays (vision circle, sensor lines, ids) are drawn from real state.
 - **Analysis views are code-split** (`React.lazy`). Recharts is ~363 kB
   (107 kB gzip) and loads only when you open Statistics, Experiments or Saves;
-  the world view — the thing that must feel instant — ships at ~446 kB
+  the world view - the thing that must feel instant - ships at ~446 kB
   (144 kB gzip) and the worker at ~28 kB.
 
 ### Project layout
 
 ```
-src/simulation/          engine — no DOM, no React
+src/simulation/          engine - no DOM, no React
   constants.ts           every named constant
   config.ts              SimConfig, limits, validation, live-vs-reset keys
   types.ts               WorldState, Creature, MetricsPayload, StatsSample
@@ -313,7 +313,7 @@ The population survives on every seed and does not pin at the cap, which were
 the survival targets. **However, the intake-efficiency target is not clearly
 met, and the calibration says so rather than hiding it:** mean food eaten per
 completed lifetime, early vs late generation, moves from 2.80 → 2.03 (mutation
-on) and 2.78 → 2.28 (mutation off) — i.e. **no clear improvement over the
+on) and 2.78 → 2.28 (mutation off) - i.e. **no clear improvement over the
 control** on these settings. Mutation-on does survive better and reach a higher
 population, so selection is doing *something*; the honest reading is that in a
 food-limited world where the cap is rarely reached, intake per lifetime is
@@ -351,7 +351,7 @@ scrolling and no fixed-width assumption at any size.
   out of the tab order while off-screen.
 - The top-bar readouts drop out progressively as space shrinks — tick and
   population always, food at ≥640px, max generation at ≥768px, speed at
-  ≥1024px, engine version at ≥1280px — rather than overflowing.
+  ≥1024px, engine version at ≥1280px - rather than overflowing.
 - The transport controls and the selection status line wrap on small screens,
   and the main tab strip scrolls horizontally instead of clipping.
 - The canvas is touch-aware: one finger pans, two fingers pinch to zoom, and a
@@ -370,7 +370,7 @@ uploaded anywhere.
   listable headers, so the list never deserializes a world to render a row.
 - **A rolling autosave** every 30 seconds (while running) goes to a reserved
   slot that is never listed with manual saves; a reload does **not** silently
-  restore it — restoring is an explicit button press.
+  restore it - restoring is an explicit button press.
 - **Export** produces a portable JSON world, a CSV of the statistics series, a
   CSV per recorded run, or the whole experiment library as JSON. Imports are
   validated with the engine's own reader before they reach the worker, and
@@ -402,10 +402,10 @@ Playwright, asserting **zero console errors and zero failed requests**.
 
 - Intake-efficiency evolution is not clearly demonstrated on the default
   settings (see above). Longer runs, larger populations, or a harder energy
-  budget would be the next experiments — the Experiments and Saves tabs exist
+  budget would be the next experiments - the Experiments and Saves tabs exist
   precisely to make those runs comparable and repeatable.
 - Vision is omnidirectional; a field-of-view cone is a documented extension.
-- There is no creature–creature collision, and no predation.
+- There is no creature-creature collision, and no predation.
 - Saved worlds are tied to the save schema and genome layout versions; a
   mismatch is rejected with a clear message rather than being guessed at.
 - `Math.tanh` prevents bit-exact cross-browser determinism.
@@ -413,7 +413,7 @@ Playwright, asserting **zero console errors and zero failed requests**.
 ## Documentation
 
 `docs/DECISIONS.md` is the authoritative log: every non-obvious choice, the
-alternative it was chosen over, and the reason — including the decisions that
+alternative it was chosen over, and the reason - including the decisions that
 were later superseded.
 
 ## License
