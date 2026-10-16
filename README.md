@@ -10,6 +10,10 @@ logic, and no external AI service. The engine is pure TypeScript with **zero DOM
 or React imports**, so the same code runs in the browser worker and headless in
 Node for calibration and tests.
 
+### ▶ [**Live demo**](https://emergent-nine-lemon.vercel.app/)
+
+Open it and press **Start** — no install required.
+
 ---
 
 ## Quick start
