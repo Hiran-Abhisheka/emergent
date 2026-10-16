@@ -16,7 +16,7 @@ export function TabsTrigger({ className, ...rest }: TabsPrimitive.TabsTriggerPro
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "relative flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-[11px] font-medium tracking-wide text-ink-faint transition-colors",
+        "relative flex items-center gap-1.5 whitespace-nowrap px-2 py-1.5 text-[11px] font-medium tracking-wide text-ink-faint transition-colors sm:px-3",
         "hover:text-ink-dim data-[state=active]:text-accent",
         "data-[state=active]:after:absolute data-[state=active]:after:inset-x-0 data-[state=active]:after:-bottom-px data-[state=active]:after:h-px data-[state=active]:after:bg-accent",
         className,

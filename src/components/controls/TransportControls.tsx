@@ -24,7 +24,7 @@ export function TransportControls({
   const booting = status === "booting";
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       <Button
         variant={running ? "default" : "primary"}
         onClick={onToggleRun}
@@ -43,7 +43,7 @@ export function TransportControls({
         trigger={<Button variant="danger">Reset</Button>}
       />
 
-      <div className="ml-2 flex items-center gap-2">
+      <div className="flex items-center gap-2 sm:ml-2">
         <span className="text-[10px] uppercase tracking-widest text-ink-faint">Speed</span>
         <Segmented
           size="sm"

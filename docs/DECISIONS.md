@@ -740,3 +740,45 @@ recorded here as **Decision / Reason / Alternative**.
 - **Alternative:** no licence (defaults to "all rights reserved", which legally
   blocks the reuse a public portfolio repo invites); Apache-2.0 (adds a patent
   grant this project does not need); a copyleft licence (would restrict reuse).
+
+### D-708 The shell adapts to narrow screens with a collapsing rail
+
+- **Decision:** The app shell is responsive from 320px upward. At `lg`
+  (≥1024px) it keeps the original three-column layout — world, then a
+  permanently docked `w-72` control rail. Below `lg` the rail becomes an
+  overlay drawer (`fixed`, `max-w-[85vw]`) behind a **Panels** button, with a
+  backdrop, `Escape`/backdrop/tab-change dismissal, and `inert` while
+  off-screen. `Sidebar` gained `className`/`id`/`inert` props so the shell owns
+  its width and position. Top-bar readouts drop out by breakpoint, the footer
+  wraps, and the main tab strip scrolls horizontally.
+- **Reason:** The rail was `w-72 shrink-0` at every width, so on a 375px phone
+  the world was left ~87px wide — unusable. An overlay drawer keeps the canvas
+  full-bleed on phones while leaving the desktop layout byte-for-byte
+  unchanged. Progressive readout disclosure avoids a two-line header that would
+  cost vertical space on exactly the devices that have least of it.
+- **Alternative:** stack the rail *below* the world and let the page scroll —
+  rejected because the canvas needs a definite height, so it would require
+  hard-coded `vh` heights and would bury the controls under a long scroll.
+  Shrinking the rail (e.g. `w-48`) keeps the desktop crowded and only defers the
+  break. Hiding the rail entirely on mobile would strand the environment editor
+  and inspector.
+
+### D-709 The canvas handles multi-touch instead of fighting it
+
+- **Decision:** `SimulationCanvas` tracks every active pointer in a `Map`. One
+  pointer pans (as before); two pointers pinch — the midpoint delta pans and the
+  ratio of finger separation zooms about that midpoint, via the existing
+  `camera.drag` + `camera.zoomBy`. Pointer coordinates now come from
+  `clientX/Y` against the canvas rect instead of `offsetX/offsetY`, and
+  `pointercancel` is handled. A pinch never ends in a creature selection.
+- **Reason:** The old code kept a single shared `dragState`: with two fingers
+  both `pointerdown`s overwrote `lastX/lastY` and the interleaved moves fought
+  each other, so the instinctive pinch gesture shook the view instead of
+  zooming it. `offsetX/offsetY` are also unreliable for touch pointers, whereas
+  the rect-relative equivalent is identical for a mouse (the canvas has no
+  border or padding) — so the desktop path is unchanged and the touch path is
+  correct.
+- **Alternative:** ignore the second pointer (stops the shake but leaves touch
+  users unable to zoom at all, since there is no wheel on a touch screen);
+  a gesture library such as Hammer.js (a dependency for behaviour the platform
+  pointer events already provide).

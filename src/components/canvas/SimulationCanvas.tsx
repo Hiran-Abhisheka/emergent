@@ -63,6 +63,19 @@ function buildOverlay(inspection: InspectedCreature | null): OverlayData | null 
 }
 
 /**
+ * Pointer position relative to the canvas. Uses client coordinates against the
+ * canvas rect rather than `offsetX/offsetY`, which are unreliable for touch.
+ */
+function localPoint(event: {
+  clientX: number;
+  clientY: number;
+  currentTarget: HTMLCanvasElement;
+}): { x: number; y: number } {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+/**
  * The simulation viewport. One mutable snapshot buffer is read each animation
  * frame; React state is only involved in pointer interactions, so running at
  * speed never triggers a re-render per tick.
@@ -80,6 +93,12 @@ export function SimulationCanvas(props: SimulationCanvasProps) {
 
   const dragState = useRef({ dragging: false, moved: false, lastX: 0, lastY: 0 });
   const sizeRef = useRef({ width: 0, height: 0 });
+
+  // Every pointer currently down on the canvas. One pointer pans; two pinch.
+  // Without this the two pointers would share `dragState` and fight each other,
+  // so an ordinary pinch would shake the view instead of zooming it.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef({ distance: 0, midX: 0, midY: 0 });
 
   // -- Animation loop -------------------------------------------------------
   useEffect(() => {
@@ -167,50 +186,112 @@ export function SimulationCanvas(props: SimulationCanvasProps) {
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragState.current = {
-      dragging: true,
-      moved: false,
-      lastX: event.nativeEvent.offsetX,
-      lastY: event.nativeEvent.offsetY,
-    };
+    const { x, y } = localPoint(event);
+    const active = pointers.current;
+    active.set(event.pointerId, { x, y });
+
+    if (active.size >= 2) {
+      // A second finger turns the gesture into a pinch: abandon the drag in
+      // progress and mark it moved so the gesture cannot end in a selection.
+      dragState.current.dragging = false;
+      dragState.current.moved = true;
+      const [a, b] = [...active.values()];
+      pinch.current = {
+        distance: Math.hypot(a.x - b.x, a.y - b.y),
+        midX: (a.x + b.x) / 2,
+        midY: (a.y + b.y) / 2,
+      };
+      return;
+    }
+
+    dragState.current = { dragging: true, moved: false, lastX: x, lastY: y };
   }, []);
 
-  const handlePointerMove = useCallback(
-    (event: PointerEvent<HTMLCanvasElement>) => {
-      const state = dragState.current;
-      if (!state.dragging) return;
-      const x = event.nativeEvent.offsetX;
-      const y = event.nativeEvent.offsetY;
-      const dx = x - state.lastX;
-      const dy = y - state.lastY;
-      if (Math.abs(dx) + Math.abs(dy) > CLICK_SLOP_PX) state.moved = true;
-      if (state.moved) {
-        state.lastX = x;
-        state.lastY = y;
-        propsRef.current.camera.drag(dx, dy);
-      }
-    },
-    [],
-  );
+  const handlePointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
+    const active = pointers.current;
+    if (!active.has(event.pointerId)) return;
+    const { x, y } = localPoint(event);
+    active.set(event.pointerId, { x, y });
 
-  const handlePointerUp = useCallback(
-    (event: PointerEvent<HTMLCanvasElement>) => {
+    if (active.size >= 2) {
+      const [a, b] = [...active.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const previous = pinch.current;
+      if (previous.distance > 0) {
+        const { camera } = propsRef.current;
+        // Moving the midpoint pans; spreading the fingers zooms about it.
+        if (previous.midX !== midX || previous.midY !== midY) {
+          camera.drag(midX - previous.midX, midY - previous.midY);
+        }
+        if (distance > 0) camera.zoomBy(distance / previous.distance, midX, midY);
+      }
+      pinch.current = { distance, midX, midY };
+      return;
+    }
+
+    const state = dragState.current;
+    if (!state.dragging) return;
+    const dx = x - state.lastX;
+    const dy = y - state.lastY;
+    if (Math.abs(dx) + Math.abs(dy) > CLICK_SLOP_PX) state.moved = true;
+    if (state.moved) {
+      state.lastX = x;
+      state.lastY = y;
+      propsRef.current.camera.drag(dx, dy);
+    }
+  }, []);
+
+  /**
+   * Shared pointer-up/cancel path. `allowSelect` is false for `pointercancel`,
+   * where the gesture was interrupted and a tap must not be inferred.
+   */
+  const endPointer = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>, allowSelect: boolean) => {
+      const active = pointers.current;
+      active.delete(event.pointerId);
       const state = dragState.current;
+
+      if (active.size >= 2) return; // other fingers are still pinching
+
+      if (active.size === 1) {
+        // Pinch down to one finger: keep panning from the pointer still down,
+        // and never read the tail of a pinch as a click.
+        const [remaining] = [...active.values()];
+        dragState.current = {
+          dragging: true,
+          moved: true,
+          lastX: remaining.x,
+          lastY: remaining.y,
+        };
+        pinch.current = { distance: 0, midX: 0, midY: 0 };
+        return;
+      }
+
+      pinch.current = { distance: 0, midX: 0, midY: 0 };
       state.dragging = false;
-      if (state.moved) return;
-      const id = pick(event.nativeEvent.offsetX, event.nativeEvent.offsetY);
-      propsRef.current.onSelect(id);
+      if (!allowSelect || state.moved) return;
+      const { x, y } = localPoint(event);
+      propsRef.current.onSelect(pick(x, y));
     },
     [pick],
   );
 
+  const handlePointerUp = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => endPointer(event, true),
+    [endPointer],
+  );
+
+  const handlePointerCancel = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => endPointer(event, false),
+    [endPointer],
+  );
+
   const handleWheel = useCallback((event: WheelEvent<HTMLCanvasElement>) => {
     const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
-    propsRef.current.camera.zoomBy(
-      factor,
-      event.nativeEvent.offsetX,
-      event.nativeEvent.offsetY,
-    );
+    const { x, y } = localPoint(event);
+    propsRef.current.camera.zoomBy(factor, x, y);
   }, []);
 
   // Keyboard equivalent of pan/zoom/select, so the viewport is usable without a
@@ -259,12 +340,13 @@ export function SimulationCanvas(props: SimulationCanvasProps) {
         ref={canvasRef}
         role="application"
         aria-roledescription="simulation viewport"
-        aria-label="Simulation world. Arrow keys pan, plus and minus zoom, F fits the view, Escape clears the selection. Numeric readouts are in the panels."
+        aria-label="Simulation world. Drag or pinch to pan and zoom, click a creature to inspect it. Arrow keys pan, plus and minus zoom, F fits the view, Escape clears the selection."
         tabIndex={0}
         className="h-full w-full cursor-grab touch-none active:cursor-grabbing"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
       />

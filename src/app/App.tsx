@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { MainNav, type MainTab } from "@/components/layout/MainNav";
 import { Sidebar, type SidebarTab } from "@/components/layout/Sidebar";
@@ -13,8 +14,16 @@ import { usePersistence } from "@/hooks/usePersistence";
 import { useExperimentLibrary } from "@/hooks/useExperimentLibrary";
 import { createExperiment } from "@/simulation/experiments/record";
 import { DEFAULT_CONFIG } from "@/simulation/config";
+import { cn } from "@/lib/cn";
 import type { ViewOptions } from "@/simulation/renderer/draw";
 import type { Preset } from "@/simulation/presets";
+
+/**
+ * Width at and above which the control rail sits permanently beside the world
+ * instead of collapsing into a toggled overlay drawer. Mirrors the `lg`
+ * breakpoint so the media query and the CSS classes never disagree.
+ */
+const RAIL_QUERY = "(min-width: 1024px)";
 
 /** Charts (Recharts) load on demand so the world view stays small. */
 const StatisticsView = lazy(() =>
@@ -70,6 +79,31 @@ export function App() {
   const [view, setView] = useState<ViewOptions>(INITIAL_VIEW);
   const [mainTab, setMainTab] = useState<MainTab>("world");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("environment");
+
+  // Narrow layouts collapse the control rail into an overlay drawer; wide ones
+  // keep it permanently beside the world. The two states share one component.
+  const [railOpen, setRailOpen] = useState(false);
+  const [wideRail, setWideRail] = useState(() => window.matchMedia(RAIL_QUERY).matches);
+
+  useEffect(() => {
+    const query = window.matchMedia(RAIL_QUERY);
+    const onChange = (): void => {
+      setWideRail(query.matches);
+      // Leaving the narrow layout restores the permanent rail, so drop the drawer.
+      if (query.matches) setRailOpen(false);
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  /**
+   * Switching views also dismisses the overlay drawer, which otherwise covers
+   * the very view the user just asked for.
+   */
+  const selectTab = useCallback((next: MainTab) => {
+    setMainTab(next);
+    setRailOpen(false);
+  }, []);
 
   /**
    * The live run as a record, rebuilt whenever a new sample arrives. Existing
@@ -140,22 +174,23 @@ export function App() {
         event.preventDefault();
         sim.toggleRun();
       } else if (event.key === "Escape") {
+        setRailOpen(false);
         handleSelect(null);
       } else if (event.key.toLowerCase() === "f") {
         camera.fit();
       } else if (event.key === "1") {
-        setMainTab("world");
+        selectTab("world");
       } else if (event.key === "2") {
-        setMainTab("statistics");
+        selectTab("statistics");
       } else if (event.key === "3") {
-        setMainTab("experiments");
+        selectTab("experiments");
       } else if (event.key === "4") {
-        setMainTab("saves");
+        selectTab("saves");
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [sim, camera, handleSelect]);
+  }, [sim, camera, handleSelect, selectTab]);
 
   const stats = sim.latestStats?.sample;
 
@@ -179,14 +214,33 @@ export function App() {
 
         <Tabs
           value={mainTab}
-          onValueChange={(next) => setMainTab(next as MainTab)}
+          onValueChange={(next) => selectTab(next as MainTab)}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="flex items-center justify-between border-b border-line bg-surface pr-3">
-            <MainNav />
-            <span className="hidden text-[10px] text-ink-faint lg:inline">
+          <div className="flex items-center justify-between gap-2 border-b border-line bg-surface pr-2 sm:pr-3">
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <MainNav />
+            </div>
+            <span className="hidden shrink-0 text-[10px] text-ink-faint lg:inline">
               Space run/pause · pan: drag or arrows · zoom: scroll or ± · click a creature · 1-4 tabs
             </span>
+            <button
+              type="button"
+              onClick={() => setRailOpen((open) => !open)}
+              title="Control panels"
+              aria-label="Toggle control panels"
+              aria-expanded={railOpen}
+              aria-controls="app-rail"
+              className={cn(
+                "flex h-7 shrink-0 items-center gap-1.5 border px-2 text-[11px] font-medium tracking-wide transition-colors lg:hidden",
+                railOpen
+                  ? "border-accent-dim bg-accent/15 text-accent"
+                  : "border-line bg-surface-2 text-ink-dim hover:border-line-strong hover:text-ink",
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Panels</span>
+            </button>
           </div>
 
           <div className="flex min-h-0 flex-1">
@@ -240,7 +294,22 @@ export function App() {
               </TabsContent>
             </main>
 
+            {railOpen && (
+              <div
+                className="fixed inset-0 z-30 bg-void/70 lg:hidden"
+                onClick={() => setRailOpen(false)}
+                aria-hidden="true"
+              />
+            )}
+
             <Sidebar
+              id="app-rail"
+              className={cn(
+                "fixed inset-y-0 right-0 z-40 w-80 max-w-[85vw] shadow-2xl shadow-black/60 transition-transform duration-200 ease-out",
+                "lg:static lg:z-auto lg:w-72 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-none",
+                railOpen ? "translate-x-0" : "translate-x-full",
+              )}
+              inert={!wideRail && !railOpen}
               value={sidebarTab}
               onChange={setSidebarTab}
               environment={{
@@ -273,7 +342,7 @@ export function App() {
           </div>
         </Tabs>
 
-        <footer className="flex items-center justify-between border-t border-line bg-surface px-4 py-2">
+        <footer className="flex flex-col gap-2 border-t border-line bg-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <TransportControls
             status={sim.status}
             speed={sim.speed}
@@ -282,7 +351,7 @@ export function App() {
             onSpeed={sim.setSpeed}
           />
           <div className="flex items-center gap-4 text-[11px] text-ink-faint">
-            <span className="tnum text-ink-dim">
+            <span className="tnum truncate text-ink-dim">
               {sim.inspection !== null
                 ? `Selected #${sim.inspection.id} · gen ${sim.inspection.generation} · energy ${sim.inspection.energy.toFixed(1)}`
                 : "No creature selected"}

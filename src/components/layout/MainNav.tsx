@@ -6,7 +6,7 @@ export type MainTab = "world" | "statistics" | "experiments" | "saves";
 /** Primary navigation between the live world and the analysis views. */
 export function MainNav() {
   return (
-    <TabsList className="border-b-0 px-2">
+    <TabsList className="border-b-0 px-1 sm:px-2">
       <TabsTrigger value="world">
         <Boxes className="h-3.5 w-3.5" />
         World

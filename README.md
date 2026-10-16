@@ -2,7 +2,7 @@
 
 A 2D artificial-life simulation where **every creature is controlled by its own
 small neural network**. Creatures forage, spend energy, reproduce with mutation,
-and die. Evolution is not scripted — it emerges from the rules.
+and die. Evolution is not scripted - it emerges from the rules.
 
 Everything the UI shows (numbers, charts, the network diagram, the statistics
 series) comes from real simulation state. There is no fake data, no placeholder
@@ -12,7 +12,7 @@ Node for calibration and tests.
 
 ### ▶ [**Live demo**](https://emergent-nine-lemon.vercel.app/)
 
-Open it and press **Start** — no install required.
+Open it and press **Start** - no install required.
 
 ---
 
@@ -42,7 +42,7 @@ Space).
 
 | Tab | What it is for |
 | --- | --- |
-| **World** | The live canvas. Drag to pan, scroll to zoom about the cursor, click a creature to inspect it. |
+| **World** | The live canvas. Drag to pan, scroll (or pinch) to zoom about the cursor, click a creature to inspect it. |
 | **Statistics** | Live charts of population, energy, generation, trait distributions and completed-lifetime food intake. |
 | **Experiments** | Capture the current run, keep a library of runs, and overlay any subset on one chart. |
 | **Saves** | Durable snapshots, a rolling autosave, and JSON/CSV import & export. |
@@ -51,7 +51,8 @@ The right rail holds **Environment** (the full configuration editor),
 **Inspector** (the selected creature, its sensors and its network diagram) and
 **View** (colour modes and overlays). Each environment field is marked **live**
 (applied to the running world immediately) or **reset** (kept as a draft until
-"Apply & reset").
+"Apply & reset"). On a narrow screen the rail collapses into the **Panels**
+drawer - see [Responsive layout](#responsive-layout).
 
 **Keyboard:** `Space` run/pause · `Escape` deselect · `F` fit view ·
 `1`–`4` switch tabs.
@@ -101,7 +102,7 @@ accepted by a reader that agrees on the meaning of every parameter.
 
 Perception is **limited to the creature's own `visionRange`** and is currently
 omnidirectional (field-of-view is a documented future extension). Sensors never
-tell a creature which way is "better" — they only expose the world.
+tell a creature which way is "better" - they only expose the world.
 
 ### Outputs
 
@@ -152,7 +153,7 @@ position if no free spot is found) and **never acts on the tick it is born**.
 
 ### Mutation
 
-Mutation is part of the run — a heritable `mutationRate` trait, not a toggle.
+Mutation is part of the run - a heritable `mutationRate` trait, not a toggle.
 
 - **Genome:** each parameter is perturbed with probability `mutationRate`
   (default 0.02) by Gaussian noise of std `mutationStrength` (0.15).
@@ -170,7 +171,7 @@ Mutation is part of the run — a heritable `mutationRate` trait, not a toggle.
 Founders are drawn from a single documented prior (identical for all founders):
 Gaussian weights with per-layer std `1/√fan-in`, small hidden biases, and a
 **positive thrust bias** (`tanh(0.75) ≈ 0.635`, so fresh creatures drift forward
-instead of freezing). This is an initialisation prior, not reward shaping — no
+instead of freezing). This is an initialisation prior, not reward shaping - no
 part of the system rewards a creature for approaching food.
 
 ---
@@ -328,12 +329,33 @@ skill. See `docs/DECISIONS.md` for the calibration history and the metrics used.
   `aria-label`s.
 - The world canvas is a labelled, focusable widget: arrows pan, `+`/`-` zoom,
   `F` fits, `Escape` clears the selection, and the panel readouts give every
-  number as text.
+  number as text. On a touch screen one finger pans and two pinch to zoom.
 - Small labels meet WCAG AA contrast (see D-703). One known limitation is
   recorded honestly in `docs/DECISIONS.md` (D-704): decorative hairline borders
   sit below the 3:1 non-text threshold; only borders that are the *sole*
   indicator of a control's boundary use the high-contrast variant.
 - The app starts paused, and nothing animates until you ask it to.
+
+---
+
+## Responsive layout
+
+The shell adapts from a 320px phone up to a wide desktop, with no horizontal
+scrolling and no fixed-width assumption at any size.
+
+- **Wide (≥1024px):** the world fills the left and the control rail
+  (Environment / Inspector / View) is permanently docked on the right.
+- **Narrow (<1024px):** the rail collapses into an overlay drawer behind the
+  **Panels** button, so the canvas keeps the full width. The drawer dismisses on
+  `Escape`, on a backdrop tap, and when you switch main tabs, and it is taken
+  out of the tab order while off-screen.
+- The top-bar readouts drop out progressively as space shrinks — tick and
+  population always, food at ≥640px, max generation at ≥768px, speed at
+  ≥1024px, engine version at ≥1280px — rather than overflowing.
+- The transport controls and the selection status line wrap on small screens,
+  and the main tab strip scrolls horizontally instead of clipping.
+- The canvas is touch-aware: one finger pans, two fingers pinch to zoom, and a
+  tap inspects a creature.
 
 ---
 
