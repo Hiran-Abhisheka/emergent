@@ -731,7 +731,7 @@ recorded here as **Decision / Reason / Alternative**.
 ### D-707 MIT licence for the published repository
 
 - **Decision:** The project is released under the **MIT** licence
-  (`LICENSE`, © 2026 Hiran Abhisheka), and the README links to it.
+  (`LICENSE`, © 2026 K.A. Hiran Abhisheka), and the README links to it.
 - **Reason:** This is a portfolio project intended to be read, run and reused.
   MIT is the most widely understood permissive licence and the default on GitHub
   for exactly this case: anyone can study, run and build on the code, while the
