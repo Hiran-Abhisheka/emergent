@@ -198,13 +198,49 @@ cached spare, which keeps the draw sequence stable.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph PURE["src/simulation — pure TypeScript, zero DOM/React imports"]
+        ENGINE["engine/<br/>step · spatial grid · sensors · energy · food · reproduction"]
+        NEURAL["neural/genome.ts<br/>8 → 12 → 4 forward pass"]
+        TRAITS["evolution/traits.ts<br/>heritable traits + mutation"]
+        SUPPORT["metrics · renderer · storage · experiments"]
+    end
+
+    subgraph BROWSER["Browser"]
+        subgraph WORKER["Web Worker — owns authoritative state"]
+            LOOP["tick loop — stepWorld(world, runtime)"]
+            POOL["snapshot pool — Float32Array + Int32Array"]
+        end
+        subgraph MAIN["Main thread"]
+            CLIENT["SimulationClient — typed, validated commands"]
+            CANVAS["canvas renderer — reads a useRef"]
+            LAZY["Statistics · Experiments · Saves — React.lazy"]
+            DB[("IndexedDB — save slots · experiment library")]
+        end
+    end
+
+    subgraph NODE["Node (headless)"]
+        CAL["scripts/calibrate.ts"]
+        TESTS["Vitest — 125 tests"]
+    end
+
+    LOOP --> ENGINE
+    ENGINE --- NEURAL
+    ENGINE --- TRAITS
+    ENGINE --- SUPPORT
+    LOOP --> POOL
+    POOL -->|snapshots ~30 Hz| CLIENT
+    CLIENT -->|typed commands| LOOP
+    CLIENT --> CANVAS
+    CLIENT --> LAZY
+    LAZY --> DB
+    CAL --> ENGINE
+    TESTS --> ENGINE
 ```
-main thread                     worker (owns the world)
------------                     ------------------------
-React UI  ──commands──────────▶  simulation.worker.ts
-          ◀─events/snapshots──   stepWorld(world, runtime)
-   canvas (reads a ref)          spatial grid, sensors, NN, energy
-```
+
+The same pure engine drives three consumers: the **Web Worker** (the live app),
+**Node** (calibration and tests), and nothing else — there is no server.
 
 - **The worker owns authoritative state.** The UI never mutates the world; it
   sends typed, runtime-validated commands.
@@ -357,3 +393,7 @@ Playwright, asserting **zero console errors and zero failed requests**.
 `docs/DECISIONS.md` is the authoritative log: every non-obvious choice, the
 alternative it was chosen over, and the reason — including the decisions that
 were later superseded.
+
+## License
+
+Released under the [MIT License](LICENSE).

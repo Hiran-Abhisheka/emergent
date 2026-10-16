@@ -727,3 +727,16 @@ recorded here as **Decision / Reason / Alternative**.
   the notice per card fixes that as a side effect.
 - **Alternative:** leave the monolith (one 412-line file, and a notice that
   appears somewhere other than where the user clicked).
+
+### D-707 MIT licence for the published repository
+
+- **Decision:** The project is released under the **MIT** licence
+  (`LICENSE`, © 2026 Hiran Abhisheka), and the README links to it.
+- **Reason:** This is a portfolio project intended to be read, run and reused.
+  MIT is the most widely understood permissive licence and the default on GitHub
+  for exactly this case: anyone can study, run and build on the code, while the
+  author keeps copyright and offers no warranty. It adds a clear signal of
+  intent to a public repository that previously had no licence at all.
+- **Alternative:** no licence (defaults to "all rights reserved", which legally
+  blocks the reuse a public portfolio repo invites); Apache-2.0 (adds a patent
+  grant this project does not need); a copyleft licence (would restrict reuse).
